@@ -110,9 +110,14 @@ export function SearchPage() {
   }, [forceGeo, qParam]);
 
   const cityQuery = useQuery({
-    queryKey: ["search", mode.kind === "query" ? mode.q : null],
+    queryKey: ["search", mode.kind === "query" ? mode.q : null, checkIn, checkOut],
     queryFn: () =>
-      searchHotels({ q: mode.kind === "query" ? mode.q : "", size: 30 }),
+      searchHotels({
+        q: mode.kind === "query" ? mode.q : "",
+        size: 30,
+        checkIn: checkIn || undefined,
+        checkOut: checkOut || undefined,
+      }),
     enabled: mode.kind === "query" && !forceGeo,
   });
 
@@ -122,6 +127,8 @@ export function SearchPage() {
       mode.kind === "geo" ? mode.center.lat : null,
       mode.kind === "geo" ? mode.center.lng : null,
       radiusKm,
+      checkIn,
+      checkOut,
     ],
     queryFn: () =>
       mode.kind === "geo"
@@ -130,6 +137,8 @@ export function SearchPage() {
             lng: mode.center.lng,
             radiusKm,
             limit: 60,
+            checkIn: checkIn || undefined,
+            checkOut: checkOut || undefined,
           })
         : Promise.resolve([]),
     enabled: mode.kind === "geo",

@@ -72,7 +72,8 @@ public class GeoService {
                     (String) t.get("thumbnail_url"),
                     castJsonList(t.get("image_urls")),
                     castJsonList(t.get("amenities")),
-                    distanceM == null ? null : distanceM / 1000.0
+                    distanceM == null ? null : distanceM / 1000.0,
+                    null // soldOut — computed by the controller when dates are supplied
             );
         }).toList();
     }

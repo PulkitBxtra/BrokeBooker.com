@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -68,6 +69,32 @@ public interface HotelRepository extends JpaRepository<Hotel, String> {
                               @Param("like") String like,
                               @Param("prefix") String prefix,
                               Pageable pageable);
+
+    /**
+     * Given a list of hotel IDs and a date range, returns the IDs whose EVERY room
+     * has at least one overlapping confirmed/pending booking — i.e. the hotel is
+     * fully sold out for those dates.
+     */
+    @Query(value = """
+        SELECT h.id
+        FROM "Hotel" h
+        WHERE h.id IN :hotelIds
+          AND EXISTS (SELECT 1 FROM rooms r WHERE r.hotel_id = h.id)
+          AND NOT EXISTS (
+              SELECT 1 FROM rooms r
+              WHERE r.hotel_id = h.id
+                AND NOT EXISTS (
+                    SELECT 1 FROM bookings b
+                    WHERE b.room_id = r.id
+                      AND b.status IN ('PENDING','CONFIRMED')
+                      AND daterange(b.check_in, b.check_out, '[)')
+                          && daterange(CAST(:checkIn AS date), CAST(:checkOut AS date), '[)')
+                )
+          )
+        """, nativeQuery = true)
+    List<String> findSoldOutHotelIds(@Param("hotelIds") List<String> hotelIds,
+                                     @Param("checkIn") LocalDate checkIn,
+                                     @Param("checkOut") LocalDate checkOut);
 
 
     // Native PostGIS query: hotels within radiusM metres of point, ordered by distance.

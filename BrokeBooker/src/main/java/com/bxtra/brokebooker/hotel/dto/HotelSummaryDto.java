@@ -20,13 +20,18 @@ public record HotelSummaryDto(
         String thumbnailUrl,
         List<String> imageUrls,
         List<String> amenities,
-        Double distanceKm
+        Double distanceKm,
+        Boolean soldOut
 ) {
     public static HotelSummaryDto from(Hotel h) {
-        return from(h, null);
+        return from(h, null, null);
     }
 
     public static HotelSummaryDto from(Hotel h, Double distanceKm) {
+        return from(h, distanceKm, null);
+    }
+
+    public static HotelSummaryDto from(Hotel h, Double distanceKm, Boolean soldOut) {
         return new HotelSummaryDto(
                 h.getId(),
                 h.getName(),
@@ -43,7 +48,15 @@ public record HotelSummaryDto(
                 h.getThumbnailUrl(),
                 h.getImageUrls(),
                 h.getAmenities(),
-                distanceKm
+                distanceKm,
+                soldOut
         );
+    }
+
+    public HotelSummaryDto withSoldOut(Boolean soldOut) {
+        return new HotelSummaryDto(id, name, starRating, userRating, userRatingCount,
+                priceInr, originalPriceInr, discountPct, locality, city,
+                latitude, longitude, thumbnailUrl, imageUrls, amenities,
+                distanceKm, soldOut);
     }
 }

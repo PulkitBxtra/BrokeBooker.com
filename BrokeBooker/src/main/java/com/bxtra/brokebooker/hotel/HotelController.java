@@ -36,11 +36,13 @@ public class HotelController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String city,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut
     ) {
         // `city` is kept as a backwards-compatible alias for `q`.
         String query = (q != null && !q.isBlank()) ? q : city;
-        return hotelService.search(query, page, Math.min(size, 50));
+        return hotelService.search(query, page, Math.min(size, 50), checkIn, checkOut);
     }
 
     @GetMapping("/suggest")
@@ -56,9 +58,17 @@ public class HotelController {
             @RequestParam double lat,
             @RequestParam double lng,
             @RequestParam(defaultValue = "10") double radiusKm,
-            @RequestParam(defaultValue = "30") int limit
+            @RequestParam(defaultValue = "30") int limit,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut
     ) {
-        return geoService.nearby(lat, lng, radiusKm, Math.min(limit, 100));
+        List<HotelSummaryDto> hotels = geoService.nearby(lat, lng, radiusKm, Math.min(limit, 100));
+        java.util.Set<String> soldOut = hotelService.computeSoldOut(
+                hotels.stream().map(HotelSummaryDto::id).toList(), checkIn, checkOut);
+        if (soldOut == null) return hotels;
+        return hotels.stream()
+                .map(h -> h.withSoldOut(soldOut.contains(h.id())))
+                .toList();
     }
 
     @GetMapping("/{id}")

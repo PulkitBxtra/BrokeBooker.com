@@ -35,23 +35,41 @@ export function HotelCard({
     hotel.discountPct > 0 &&
     hotel.originalPriceInr != null;
 
+  const soldOut = hotel.soldOut === true;
+
   return (
     <Link
       to={`/hotels/${hotel.id}${query ? `?${query}` : ""}`}
-      className="group block"
+      className={cn("group block", soldOut && "pointer-events-auto")}
     >
-      <article className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-xl hover:ring-slate-300">
+      <article
+        className={cn(
+          "overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-xl hover:ring-slate-300",
+          soldOut && "opacity-80"
+        )}
+      >
         <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
           <img
             src={image}
             alt={hotel.name}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={cn(
+              "h-full w-full object-cover transition-transform duration-500 group-hover:scale-105",
+              soldOut && "grayscale"
+            )}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = placeholderImage(hotel.id);
             }}
           />
-          {hasDiscount && (
+          {soldOut && (
+            <>
+              <div className="absolute inset-0 bg-black/40" />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-red-600 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white shadow-lg">
+                Sold out
+              </span>
+            </>
+          )}
+          {hasDiscount && !soldOut && (
             <Badge variant="accent" className="absolute left-3 top-3 shadow">
               {hotel.discountPct}% OFF
             </Badge>

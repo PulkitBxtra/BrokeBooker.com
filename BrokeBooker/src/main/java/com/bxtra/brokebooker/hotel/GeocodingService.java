@@ -25,22 +25,27 @@ public class GeocodingService {
     private final RestClient client;
     private final String apiKey;
     private final String baseUrl;
+    private final String countryCodes;
 
     public GeocodingService(
             @Value("${app.geocoding.api-key}") String apiKey,
-            @Value("${app.geocoding.base-url}") String baseUrl) {
+            @Value("${app.geocoding.base-url}") String baseUrl,
+            @Value("${app.geocoding.country-codes:}") String countryCodes) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
+        this.countryCodes = countryCodes;
         this.client = RestClient.builder().build();
     }
 
     public GeoResolveDto resolve(String query) {
-        String url = UriComponentsBuilder.fromUriString(baseUrl)
+        UriComponentsBuilder ub = UriComponentsBuilder.fromUriString(baseUrl)
                 .queryParam("q", query)
                 .queryParam("api_key", apiKey)
-                .queryParam("limit", 1)
-                .build()
-                .toUriString();
+                .queryParam("limit", 1);
+        if (countryCodes != null && !countryCodes.isBlank()) {
+            ub.queryParam("countrycodes", countryCodes);
+        }
+        String url = ub.build().toUriString();
 
         List<Map<String, Object>> results;
         try {

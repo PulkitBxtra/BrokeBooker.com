@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookingDialog } from "@/components/BookingDialog";
 import { getHotel } from "@/api/hotels";
-import { formatInr, formatDate, toIsoDate } from "@/lib/utils";
+import { formatInr, formatDate, defaultCheckIn, defaultCheckOut } from "@/lib/utils";
 import type { Room } from "@/types";
 
 const AMENITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -21,8 +21,8 @@ const AMENITY_ICONS: Record<string, React.ComponentType<{ className?: string }>>
 export function HotelDetail() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const checkIn = params.get("checkIn") ?? defaultTomorrow();
-  const checkOut = params.get("checkOut") ?? defaultDayAfter();
+  const checkIn = params.get("checkIn") || defaultCheckIn();
+  const checkOut = params.get("checkOut") || defaultCheckOut();
   const guests = Number(params.get("guests") ?? 2);
 
   const { data: hotel, isLoading } = useQuery({
@@ -238,13 +238,3 @@ function RoomRow({ room, onBook }: { room: Room; onBook: () => void }) {
   );
 }
 
-function defaultTomorrow() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return toIsoDate(d);
-}
-function defaultDayAfter() {
-  const d = new Date();
-  d.setDate(d.getDate() + 2);
-  return toIsoDate(d);
-}

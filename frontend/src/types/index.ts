@@ -19,6 +19,7 @@ export type HotelSummary = {
   imageUrls: string[] | null;
   amenities: string[] | null;
   distanceKm: number | null;
+  soldOut: boolean | null;
 };
 
 export type Room = {

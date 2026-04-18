@@ -5,6 +5,8 @@ export async function searchHotels(params: {
   q: string;
   page?: number;
   size?: number;
+  checkIn?: string;
+  checkOut?: string;
 }) {
   const { data } = await api.get<Page<HotelSummary>>("/api/hotels/search", {
     params,
@@ -24,6 +26,8 @@ export async function nearbyHotels(params: {
   lng: number;
   radiusKm?: number;
   limit?: number;
+  checkIn?: string;
+  checkOut?: string;
 }) {
   const { data } = await api.get<HotelSummary[]>("/api/hotels/nearby", {
     params,

@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,16 +31,38 @@ public class HotelService {
                 .map(HotelSummaryDto::from);
     }
 
-    public Page<HotelSummaryDto> search(String q, int page, int size) {
+    public Page<HotelSummaryDto> search(String q, int page, int size,
+                                        LocalDate checkIn, LocalDate checkOut) {
         if (q == null || q.isBlank()) {
             return Page.empty(PageRequest.of(page, size));
         }
         String query = q.trim();
         String like = "%" + query + "%";
         String prefix = query + "%";
-        return hotelRepository
-                .searchByQuery(query, like, prefix, PageRequest.of(page, size))
-                .map(HotelSummaryDto::from);
+        Page<Hotel> hotels = hotelRepository.searchByQuery(
+                query, like, prefix, PageRequest.of(page, size));
+
+        Set<String> soldOut = computeSoldOut(
+                hotels.getContent().stream().map(Hotel::getId).toList(),
+                checkIn, checkOut);
+        return hotels.map(h -> HotelSummaryDto.from(h, null,
+                soldOut == null ? null : soldOut.contains(h.getId())));
+    }
+
+    /**
+     * For a batch of hotel IDs and a date range, returns the subset that is fully
+     * sold out (every room blocked by a PENDING or CONFIRMED booking in that range).
+     * Returns null when dates aren't supplied — callers should treat that as "unknown".
+     */
+    public Set<String> computeSoldOut(Collection<String> hotelIds,
+                                      LocalDate checkIn, LocalDate checkOut) {
+        if (checkIn == null || checkOut == null
+                || !checkOut.isAfter(checkIn)
+                || hotelIds == null || hotelIds.isEmpty()) {
+            return null;
+        }
+        return new HashSet<>(
+                hotelRepository.findSoldOutHotelIds(List.copyOf(hotelIds), checkIn, checkOut));
     }
 
     public List<HotelSummaryDto> suggest(String query, int limit) {
@@ -48,7 +71,7 @@ public class HotelService {
         int capped = Math.min(Math.max(limit, 1), 20);
         // Reuse the exact same ranked query as /search so the dropdown's top N
         // is guaranteed to equal the first page of full results.
-        return search(q, 0, capped).getContent();
+        return search(q, 0, capped, null, null).getContent();
     }
 
     public HotelDetailDto getDetail(String hotelId, LocalDate checkIn, LocalDate checkOut) {
