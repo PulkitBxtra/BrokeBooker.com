@@ -1,0 +1,84 @@
+# BrokeBooker — Render Blueprint
+# https://render.com/docs/blueprint-spec
+#
+# Creates both services at once: Spring Boot API (Docker) + React SPA (static).
+# After the initial deploy, set the secrets marked `sync: false` in the Render
+# dashboard, and paste the API's public URL into the frontend's VITE_API_URL.
+#
+# Regions: Neon lives in ap-southeast-2 (Sydney). Singapore is Render's nearest
+# region. Override per-service below if you prefer oregon/frankfurt/etc.
+
+services:
+  # ────────────────────────────────────────────────────────────────────────
+  # Backend API (Spring Boot 4, Flyway, PostGIS via NeonDB)
+  # ────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: brokebooker-api
+    runtime: docker
+    plan: free               # upgrade to `starter` if you want no sleep
+    region: singapore
+    branch: main
+    dockerfilePath: ./BrokeBooker/Dockerfile
+    dockerContext: ./BrokeBooker
+    # Any 2xx-returning public endpoint. /search is permitAll'd in SecurityConfig
+    # and exercises the DB, so a 200 here means "DB up + app ready".
+    healthCheckPath: /api/hotels/search?q=Mumbai&size=1
+    envVars:
+      # --- Neon / Postgres (set in Render dashboard; marked secret) ---
+      - key: DATABASE_URL
+        sync: false          # e.g. jdbc:postgresql://…pooler.neon.tech/neondb?sslmode=require
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+
+      # --- JWT signing key (Render auto-generates a random value) ---
+      - key: JWT_SECRET
+        generateValue: true
+
+      # --- Geocoding (geocode.maps.co) ---
+      - key: GEOCODING_API_KEY
+        sync: false
+      - key: GEOCODING_COUNTRY_CODES
+        value: in
+
+      # --- CORS: set to the frontend's Render URL after first deploy ---
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false          # e.g. https://brokebooker-web.onrender.com
+
+      # JVM tuning — keep container-aware heap sizing on the free 512MB plan
+      - key: JAVA_OPTS
+        value: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Frontend SPA (Vite + React, served as static files)
+  # ────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: brokebooker-web
+    runtime: static
+    branch: main
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      # Point the SPA at the deployed API. Set in dashboard after the API's
+      # public URL is known (format: https://brokebooker-api.onrender.com).
+      - key: VITE_API_URL
+        sync: false
+    # SPA routing — any path not matching a built asset falls back to index.html
+    # so React Router can resolve it client-side.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # Security + caching headers
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
