@@ -1,0 +1,59 @@
+name: Keep Render warm
+
+# Render's free tier sleeps web services after 15 min of no HTTP traffic.
+# Hitting both services every ~5 min keeps them warm for demos.
+#
+# Note on cadence: GitHub Actions cron runs on a best-effort basis and can
+# lag 10-30 min during peak load. Actual interval averages ~5 min but may
+# occasionally drift. For a demo that's fine.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}  # manual trigger from the Actions tab
+
+concurrency:
+  group: keep-render-warm
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping backend + frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping backend (wakes DB + Flyway)
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "::warning::BACKEND_URL secret not set — skipping backend ping"
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --max-time 90 \
+            --retry 3 --retry-delay 10 --retry-connrefused \
+            "$BACKEND_URL/api/hotels/search?q=Mumbai&size=1")
+          echo "Backend ($BACKEND_URL) → HTTP $code"
+          # Accept anything 2xx/3xx/4xx (4xx still proves the app answered).
+          # Fail only on 5xx or connection timeout (curl exits non-zero).
+          [ "$code" -lt 500 ]
+
+      - name: Ping frontend (wakes static site edge)
+        if: always()
+        env:
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+        run: |
+          if [ -z "$FRONTEND_URL" ]; then
+            echo "::warning::FRONTEND_URL secret not set — skipping frontend ping"
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --max-time 90 \
+            --retry 3 --retry-delay 10 --retry-connrefused \
+            "$FRONTEND_URL/")
+          echo "Frontend ($FRONTEND_URL) → HTTP $code"
+          [ "$code" -lt 500 ]
